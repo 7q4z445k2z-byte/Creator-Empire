@@ -1,0 +1,872 @@
+Using "Apply Patch"
+
+Created [](file:///c%3A/Users/jason/Desktop/manifest.json)
+
+Created [](file:///c%3A/Users/jason/Desktop/service-worker.js)
+
+Using "Apply Patch"
+
+--- Updated HTML file: of3.html ---
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Creator Empire</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="manifest.json">
+<style>
+body { font-family: Arial; background:#111; color:white; padding:20px; }
+button { margin:4px; padding:6px; cursor:pointer; }
+.section { margin-bottom:20px; padding:15px; background:#1e1e1e; border-radius:8px; }
+.hidden { display:none; }
+.menu-box { background:#222; padding:10px; margin:8px 0; border-radius:6px; }
+.progress-container { background:#333; height:8px; border-radius:4px; margin:4px 0; }
+.progress-bar { background:#4caf50; height:8px; border-radius:4px; }
+h3 { margin-top:15px; }
+#clientPopup.hidden { display:none; }
+#clientPopup { position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1000; }
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+@media (max-width: 768px) {
+  body {
+    padding: 10px;
+  }
+
+  button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .section {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .menu-box {
+    padding: 12px;
+  }
+
+  .shop-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+</style>
+</head>
+<body>
+
+<h1>Creator Empire</h1>
+<span id="celebrityBadge" onclick="openCelebrityInfo()" style="margin-left:10px; cursor:pointer; font-size:18px;">⚪</span>
+
+<div class="section">
+Week <span id="week"></span> | Year <span id="year"></span><br>
+Energy: <span id="energy"></span>/<span id="maxEnergy"></span><br>
+Money: <span id="money"></span><br>
+Prestige: <span id="prestige"></span><br>
+Passive Income: <span id="passive"></span>/week<br>
+Maintenance: <span id="maintenance"></span>/week
+</div>
+
+<div class="section">
+<h2>Stats (<span id="avgStat"></span>/100)</h2>
+<div id="stats"></div>
+</div>
+
+<div class="section">
+Fans — Twitter: <span id="twitterFans"></span> | OnlyFans: <span id="ofFans"></span>
+</div>
+
+<div class="section">
+<button onclick="postTwitter()">Post Twitter (10E)</button>
+<button onclick="createContent()">Create Content (20E)</button>
+<button onclick="openClientMenu()">Meet Client (20E)</button>
+</div>
+
+<div class="section">
+Subscription Price:
+<input type="number" id="priceInput" value="10">
+<button onclick="setPrice()">Set</button>
+</div>
+
+<div class="section">
+<button onclick="openMenu('shop')">Shop</button>
+<button onclick="openMenu('owned')">Owned</button>
+<button onclick="openMenu('vacation')">Vacation</button>
+<button onclick="openMenu('revenus')">Revenus</button>
+</div>
+
+<div class="section hidden" id="shopMenu"><h2>Shop</h2><div id="shopContent"></div></div>
+<div class="section hidden" id="ownedMenu"><h2>Owned</h2><div id="ownedContent"></div></div>
+<div class="section hidden" id="vacationMenu"><h2>Vacations</h2><div id="vacationContent"></div></div>
+<div class="section hidden" id="revenusMenu"><h2>Revenus</h2><div id="revenusContent"></div></div>
+
+<div class="section">
+<button onclick="nextWeek()">Next Week</button>
+</div>
+
+<!-- Client Popup Overlay -->
+<div id="clientPopup" class="hidden"></div>
+
+<script>
+
+// ---------- GAME STATE ----------
+let game={
+week:1, year:1,
+energy:100, maxEnergy:100,
+money:10000,
+twitterFans:100, ofFans:50,
+price:10,
+prestige:0,
+passiveIncome:0,
+maintenance:0,
+lingerieBonus:0,
+techTwitter:0,
+techOF:0,
+weeklyEnergyBonus:0,
+stats:{oral:1,anal:1,masturbation:1,bdsm:1,beauty:1,persuasion:1},
+realEstate:[],
+manager:false, managerLevel:0,
+pr:false, prLevel:0,
+// IRS SYSTEM ADDITIONS
+yearlyRevenue:{},
+unpaidTaxes:{},
+irsRisk:0,
+// --- NEW GAME VARIABLES ---
+jetBonus:0,
+celebrity:false,
+};
+
+function saveGame(){
+  localStorage.setItem("creatorEmpireSave", JSON.stringify(game));
+}
+
+function loadGame(){
+  let save = localStorage.getItem("creatorEmpireSave");
+  if(save){
+    try{
+      let parsed = JSON.parse(save);
+      Object.assign(game, parsed);
+    }catch(e){
+      console.log("Save corrupted");
+    }
+  }
+}
+
+loadGame();
+
+// ---------- FORMAT ----------
+function formatMoney(n){
+if(n>=1000000) return (n/1000000).toFixed(1)+"M€";
+if(n>=1000) return (n/1000).toFixed(1)+"k€";
+return Math.floor(n)+"€";
+}
+function formatPrice(n){ return n.toLocaleString()+"€"; }
+function formatNumber(n){ return Math.floor(n).toLocaleString(); }
+
+// ---------- SHOP ----------
+const shopItems=[
+// REAL ESTATE
+{name:"Apartment",cat:"Real Estate",price:150000,effect:"+2,000€/week",
+apply:()=>{game.passiveIncome+=2000;game.realEstate.push({name:"Apartment",income:2000,renov:0});}},
+{name:"House",cat:"Real Estate",price:400000,effect:"+5,000€/week | 1,000€ maintenance",
+apply:()=>{game.passiveIncome+=5000;game.maintenance+=1000;game.realEstate.push({name:"House",income:5000,renov:0});}},
+{name:"Building",cat:"Real Estate",price:1000000,effect:"+20,000€/week | 5,000€ maintenance",
+apply:()=>{game.passiveIncome+=20000;game.maintenance+=5000;game.realEstate.push({name:"Building",income:20000,renov:0});}},
+// --- NEW SHOP ITEMS ---
+// REAL ESTATE
+{name:"Mansion",cat:"Real Estate",price:10000000,
+effect:"+100 Prestige | 15,000€ maintenance | No passive income",
+apply:()=>{
+game.prestige+=100;
+game.maintenance+=15000;
+game.realEstate.push({name:"Mansion",income:0,renov:0});
+}},
+{name:"Penthouse",cat:"Real Estate",price:500000,
+effect:"+25 Prestige | +2 Max Energy",
+apply:()=>{
+game.prestige+=25;
+game.maxEnergy+=2;
+}},
+// LUXURY VEHICLES
+{name:"Ferrari",cat:"Luxury",price:300000,
+effect:"+15 Prestige | 300€ maintenance",
+apply:()=>{
+game.prestige+=15;
+game.maintenance+=300;
+}},
+{name:"Lamborghini",cat:"Luxury",price:400000,
+effect:"+20 Prestige | 400€ maintenance",
+apply:()=>{
+game.prestige+=20;
+game.maintenance+=400;
+}},
+{name:"Rolls-Royce",cat:"Luxury",price:500000,
+effect:"+25 Prestige | 500€ maintenance",
+apply:()=>{
+game.prestige+=25;
+game.maintenance+=500;
+}},
+// LUXURY ITEMS
+{name:"Birkin Limited Edition",cat:"Luxury",price:250000,
+effect:"+12 Prestige",
+apply:()=>{
+game.prestige+=12;
+}},
+{name:"Hermès Kelly",cat:"Luxury",price:7500,
+effect:"+3 Prestige",
+apply:()=>{
+game.prestige+=3;
+}},
+{name:"Diamond Necklace",cat:"Luxury",price:180000,
+effect:"+8 Prestige",
+apply:()=>{
+game.prestige+=8;
+}},
+{name:"Patek Philippe",cat:"Luxury",price:220000,
+effect:"+10 Prestige",
+apply:()=>{
+game.prestige+=10;
+}},
+{name:"Rolex",cat:"Luxury",price:25000,
+effect:"+4 Prestige",
+apply:()=>{
+game.prestige+=4;
+}},
+{name:"Haute Couture Collection",cat:"Luxury",price:400000,
+effect:"+10 Prestige | +2% Twitter growth",
+apply:()=>{
+game.prestige+=10;
+game.techTwitter+=0.02;
+}},
+// BUSINESS
+{name:"Content Studio",cat:"Business",price:500000,
+effect:"+15% OF growth | +5 Prestige | 2,500€ maintenance",
+apply:()=>{
+game.techOF+=0.15;
+game.prestige+=5;
+game.maintenance+=2500;
+}},
+// ULTRA LUXURY
+{name:"Private Jet",cat:"Luxury",price:25000000,
+effect:"+50 Prestige | +10% Brand Deals | 30,000€ maintenance",
+apply:()=>{
+game.prestige+=50;
+game.maintenance+=30000;
+game.jetBonus+=0.10;
+}},
+// LUXURY
+{name:"Sexy Lingerie",cat:"Luxury",price:8000,effect:"+25% client income",
+apply:()=>{game.lingerieBonus+=0.25;}},
+{name:"Birkin",cat:"Luxury",price:15000,effect:"+5 Prestige",
+apply:()=>{game.prestige+=5;}},
+{name:"Luxury Clothes",cat:"Luxury",price:50000,effect:"+10 Prestige",
+apply:()=>{game.prestige+=10;}},
+// TECH
+{name:"iPhone",cat:"Tech",price:1200,effect:"+2% Twitter growth",
+apply:()=>{game.techTwitter+=0.02;}},
+{name:"iPad",cat:"Tech",price:1400,effect:"+3% OF growth",
+apply:()=>{game.techOF+=0.03;}},
+{name:"MacBook",cat:"Tech",price:2500,effect:"+5% Twitter & OF",
+apply:()=>{game.techTwitter+=0.05;game.techOF+=0.05;}},
+{name:"4K Camera",cat:"Tech",price:3500,effect:"+10% OF growth",
+apply:()=>{game.techOF+=0.10;}},
+{name:"Ring Light",cat:"Tech",price:250,effect:"+5% OF growth",
+apply:()=>{game.techOF+=0.05;}},
+{name:"Coffee Machine",cat:"Tech",price:500,effect:"+5 Energy/week",
+apply:()=>{game.weeklyEnergyBonus+=5;}},
+// BUSINESS
+{name:"Manager",cat:"Business",price:100000,effect:"+5% OF growth (upgradeable)",
+apply:()=>{game.manager=true;}},
+{name:"PR Agency",cat:"Business",price:300000,effect:"+5% Twitter growth (upgradeable)",
+apply:()=>{game.pr=true;}}
+];
+
+// ---------- CORE ACTIONS ----------
+function postTwitter(){
+if(game.energy<10) return;
+game.energy-=10;
+let gain=5+(game.stats.beauty*2)+(game.prestige*0.5);
+gain*=1+game.techTwitter;
+if(game.pr) gain*=1+(game.prLevel*0.05);
+game.twitterFans+=gain;
+updateUI();
+}
+
+function createContent(){
+if(game.energy<20) return;
+game.energy-=20;
+let avg=(game.stats.oral+game.stats.anal+game.stats.masturbation+game.stats.bdsm)/4;
+let gain=(avg+game.stats.beauty)*2;
+gain*=1+game.techOF;
+if(game.manager) gain*=1+(game.managerLevel*0.05);
+game.ofFans+=gain;
+updateUI();
+}
+
+// ---------- CLIENT MENU SYSTEM ----------
+const clientTypes = [
+  {
+    name: "Companion Client",
+    energy: 10,
+    income: () => 100 + (game.stats.beauty * 5) + (game.stats.persuasion * 10),
+    description: "Friendly companionship, low risk.",
+    unlocked: () => true,
+    unlockText: "",
+    sexual: false
+  },
+  {
+    name: "Romantic Client",
+    energy: 15,
+    income: () => (200 + (game.stats.oral * 10) + (game.stats.persuasion * 15)) * (1 + game.lingerieBonus),
+    description: "Romantic experience, lingerie bonus applies.",
+    unlocked: () => true,
+    unlockText: "",
+    sexual: true
+  },
+  {
+    name: "Anal Client",
+    energy: 25,
+    income: () => (400 + (game.stats.anal * 20)) * (1 + game.lingerieBonus),
+    description: "Anal session, lingerie bonus applies.",
+    unlocked: () => game.stats.anal >= 20,
+    unlockText: "Unlock: Anal stat ≥ 20",
+    sexual: true
+  },
+  {
+    name: "BDSM Client",
+    energy: 30,
+    income: () => (600 + (game.stats.bdsm * 25)) * (1 + game.lingerieBonus),
+    description: "BDSM session, 10% chance for energy penalty next week.",
+    unlocked: () => game.stats.bdsm >= 30,
+    unlockText: "Unlock: BDSM stat ≥ 30",
+    sexual: true,
+    applyPenalty: true
+  },
+  {
+    name: "VIP Client",
+    energy: 40,
+    income: () => (1000 + (game.prestige * 50)) * (1 + game.lingerieBonus),
+    description: "High prestige VIP, lingerie bonus applies.",
+    unlocked: () => game.prestige >= 50,
+    unlockText: "Unlock: Prestige ≥ 50",
+    sexual: true
+  },
+  {
+    name: "Whale Client",
+    energy: 50,
+    income: () => (5000 + (game.prestige * 100)) * (1 + game.lingerieBonus),
+    description: "Ultra-rich Whale, lingerie bonus applies.",
+    unlocked: () => game.prestige >= 100 && game.realEstate.some(r => r.name === "Building"),
+    unlockText: "Unlock: Prestige ≥ 100 & own a Building",
+    sexual: true
+  }
+];
+
+let clientEnergyPenalty = 0; // For BDSM client penalty
+
+function openClientMenu() {
+  renderClientMenu();
+  document.getElementById("clientPopup").classList.remove("hidden");
+}
+
+function closeClientMenu() {
+  document.getElementById("clientPopup").classList.add("hidden");
+}
+
+function renderClientMenu() {
+  let html = `<div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center;">
+    <div style="background:#222;padding:24px;border-radius:12px;min-width:320px;max-width:90vw;">
+      <h2>Select Client</h2>`;
+  clientTypes.forEach((client, idx) => {
+    let locked = !client.unlocked();
+    let enoughEnergy = game.energy >= client.energy;
+    html += `<div class="menu-box" style="margin-bottom:12px;">
+      <strong>${client.name}</strong><br>
+      Energy: ${client.energy} | Income: ${formatMoney(client.income())}<br>
+      <em>${client.description}</em><br>`;
+    if (locked) {
+      html += `<button disabled style="opacity:0.5;">Locked</button> <span style="color:#f88;">${client.unlockText}</span>`;
+    } else if (!enoughEnergy) {
+      html += `<button disabled style="opacity:0.5;">Not enough energy</button>`;
+    } else {
+      html += `<button onclick="selectClient(${idx})">Select</button>`;
+    }
+    html += `</div>`;
+  });
+  html += `<button onclick="closeClientMenu()" style="margin-top:10px;">Close</button>`;
+  html += `</div></div>`;
+  document.getElementById("clientPopup").innerHTML = html;
+}
+
+function selectClient(idx) {
+  const client = clientTypes[idx];
+  if (!client.unlocked() || game.energy < client.energy) return;
+  game.energy -= client.energy;
+  let income = client.income();
+  game.money += income;
+  // IRS SYSTEM: Add client income to yearly revenue
+  addRevenue(income);
+  // BDSM penalty
+  if (client.applyPenalty && Math.random() < 0.1) {
+    applyTemporaryEnergyPenalty();
+  }
+  closeClientMenu();
+  updateUI();
+}
+
+function applyTemporaryEnergyPenalty() {
+  clientEnergyPenalty = 10;
+}
+
+// IRS SYSTEM: Add revenue to yearly tracking
+function addRevenue(amount) {
+  let y = game.year;
+  if (!game.yearlyRevenue[y]) game.yearlyRevenue[y] = 0;
+  game.yearlyRevenue[y] += amount;
+}
+
+// Patch nextWeek to apply penalty if set (without modifying its logic)
+const _nextWeek = nextWeek;
+nextWeek = function() {
+  if (clientEnergyPenalty > 0) {
+    game.maxEnergy = Math.max(0, game.maxEnergy - clientEnergyPenalty);
+    clientEnergyPenalty = 0;
+  }
+  _nextWeek();
+};
+
+// ---------- NEXT WEEK ----------
+function nextWeek(){
+// sponsor popup 20% chance if >10k fans
+if(game.twitterFans>10000 && Math.random()<0.2){
+let reward=10000+Math.random()*20000;
+if(confirm("Brand deal offer: "+formatMoney(reward)+" ?")){
+game.money+=reward;
+addRevenue(reward); // IRS SYSTEM: Add sponsor deal to yearly revenue
+}
+}
+// conversion
+let conversion=game.twitterFans*(game.stats.persuasion/200);
+game.ofFans+=conversion;
+// churn
+let churn=game.ofFans*(game.price/300);
+game.ofFans-=churn;
+if(game.ofFans<0) game.ofFans=0;
+// revenue
+let ofRevenue = game.ofFans*game.price;
+game.money+=ofRevenue;
+addRevenue(ofRevenue); // IRS SYSTEM: Add OnlyFans revenue
+let passive = game.passiveIncome;
+game.money+=passive;
+addRevenue(passive); // IRS SYSTEM: Add passive income
+
+game.money-=game.maintenance;
+// IRS SYSTEM: Annual tax check
+if(game.week===1 && game.year>1){
+  let prevYear = game.year-1;
+  let gross = game.yearlyRevenue[prevYear]||0;
+  let tax = Math.floor(gross*0.25);
+  if(game.unpaidTaxes[prevYear]===undefined){
+    game.unpaidTaxes[prevYear]=true;
+  }
+}
+// IRS SYSTEM: IRS risk event
+if(game.irsRisk>0){
+  let chance = game.irsRisk*0.5;
+  if(Math.random()*100<chance){
+    let totalDue = 0;
+    for(let y in game.unpaidTaxes){
+      if(game.unpaidTaxes[y]){
+        let gross = game.yearlyRevenue[y]||0;
+        totalDue += Math.floor(gross*0.25);
+      }
+    }
+    if(totalDue>0){
+      let penalty = Math.floor(totalDue*1.5);
+      game.money -= penalty;
+      for(let y in game.unpaidTaxes){
+        game.unpaidTaxes[y]=false;
+      }
+      game.irsRisk=0;
+      alert("IRS audit! You were forced to repay with penalties.");
+    }
+  }
+}
+// time
+game.week++;
+if(game.week>52){
+game.week=1;
+game.year++;
+game.maxEnergy=Math.max(20,game.maxEnergy-12);
+}
+// reset energy
+game.energy=game.maxEnergy+game.weeklyEnergyBonus;
+updateUI();
+}
+
+// ---------- VACATIONS ----------
+function renderVacations(){
+let html=`
+<div class="menu-box">
+Ibiza (5,000€)<br>
++5 Max Energy<br>
+<button onclick="buyVacation(5000,5)">Go</button>
+</div>
+<div class="menu-box">
+Maldives (20,000€)<br>
++10 Max Energy<br>
+<button onclick="buyVacation(20000,10)">Go</button>
+</div>
+<div class="menu-box">
+Private Island (100,000€)<br>
++20 Max Energy<br>
+<button onclick="buyVacation(100000,20)">Go</button>
+</div>`;
+document.getElementById("vacationContent").innerHTML=html;
+}
+
+function buyVacation(price,energyBoost){
+if(game.money>=price){
+game.money-=price;
+game.maxEnergy+=energyBoost;
+updateUI();
+}
+}
+
+// ---------- MANAGER / PR UPGRADE ----------
+function upgradeManager(){
+if(game.manager && game.managerLevel<10){
+let cost=20000*(game.managerLevel+1);
+if(game.money>=cost){
+game.money-=cost;
+game.managerLevel++;
+updateUI();}}
+}
+
+function upgradePR(){
+if(game.pr && game.prLevel<10){
+let cost=50000*(game.prLevel+1);
+if(game.money>=cost){
+game.money-=cost;
+game.prLevel++;
+updateUI();}}
+}
+
+// ---------- SHOP RENDER ----------
+function renderShop(){
+let grouped={};
+shopItems.forEach((item,i)=>{
+if(!grouped[item.cat]) grouped[item.cat]=[];
+grouped[item.cat].push({item,index:i});
+});
+let html="";
+// Add Manager to Shop if not purchased and enough Twitter fans
+if(!game.manager){
+  if(game.twitterFans>=10000){
+    html+=`<h3>Business</h3>
+    <div class="shop-grid"><div class="menu-box">
+    <strong>Manager</strong><br>
+    +5% OF growth (upgradeable)<br>
+    <button onclick="buyManager()">Hire Manager (100,000€)</button>
+    </div></div>`;
+  }else{
+    html+=`<h3>Business</h3>
+    <div class="shop-grid"><div class="menu-box">
+    <strong>Manager</strong><br>
+    <span style="color:#f88;">Locked – Requires 10,000 Twitter followers</span>
+    </div></div>`;
+  }
+}
+// Add PR Agency to Shop if not hired
+if(!game.pr){
+  html+=`<h3>Business</h3>
+  <div class="shop-grid"><div class="menu-box">
+  <strong>PR Agency</strong><br>
+  <span>+5% Twitter growth (upgradeable)</span><br>
+  <button onclick="buyPR()">Hire PR Agency (10,000€)</button>
+  </div></div>`;
+}
+for(let cat in grouped){
+  if(cat==="Business") continue;
+  html+=`<h3>${cat}</h3><div class="shop-grid">`;
+  grouped[cat].forEach(obj=>{
+    html+=`
+<div class="menu-box">
+<strong>${obj.item.name}</strong><br>
+${obj.item.effect}<br>
+Price: ${formatPrice(obj.item.price)}<br>
+<button onclick="buyItem(${obj.index})">Buy</button>
+</div>`;
+  });
+  html+=`</div>`;
+}
+document.getElementById("shopContent").innerHTML=html;
+}
+
+function buyManager(){
+  if(game.manager) return;
+  if(game.twitterFans<10000) return;
+  if(game.money>=100000){
+    game.money-=100000;
+    game.manager=true;
+    updateUI();
+  }
+}
+
+function buyPR(){
+  if(game.pr) return;
+  if(game.money>=10000){
+    game.money-=10000;
+    game.pr=true;
+    game.prSalary=10000;
+    updateUI();
+  }
+}
+
+function buyItem(i){
+let item=shopItems[i];
+if(game.money>=item.price){
+game.money-=item.price;
+item.apply();
+updateUI();
+}
+}
+
+// ---------- OWNED ----------
+function renderOwned(){
+let html="";
+
+game.realEstate.forEach((prop,index)=>{
+html+=`
+<div class="menu-box">
+${prop.name}<br>
+Income: ${formatMoney(prop.income)}<br>
+Renovations: ${prop.renov}<br>
+<button onclick="renovate(${index})">Renovate (50,000€)</button>
+</div>`;
+});
+
+if(game.manager){
+html+=`
+<div class="menu-box">
+Manager Level ${game.managerLevel}/10<br>
+<button onclick="upgradeManager()">Upgrade</button>
+</div>`;
+}
+
+if(game.pr){
+html+=`
+<div class="menu-box">
+PR Agency Level ${game.prLevel}/10<br>
+<button onclick="upgradePR()">Upgrade</button>
+</div>`;
+}
+
+document.getElementById("ownedContent").innerHTML=html;
+}
+
+function renovate(index){
+if(game.money>=50000){
+game.money-=50000;
+game.realEstate[index].income+=1000;
+game.realEstate[index].renov++;
+game.passiveIncome+=1000;
+updateUI();
+}
+}
+
+// ---------- STATS ----------
+function upgradeStat(stat){
+if(game.energy>=10 && game.stats[stat]<100){
+game.energy-=10;
+game.stats[stat]++;
+updateUI();
+}
+}
+
+function renderStats(){
+let html="";
+for(let stat in game.stats){
+let val=game.stats[stat];
+html+=`
+${stat}: ${val}/100
+<button onclick="upgradeStat('${stat}')">Upgrade (10E)</button>
+<div class="progress-container">
+<div class="progress-bar" style="width:${val}%"></div>
+</div>`;
+}
+document.getElementById("stats").innerHTML=html;
+}
+
+// ---------- MENU ----------
+function openMenu(menu){
+document.getElementById("shopMenu").classList.add("hidden");
+document.getElementById("ownedMenu").classList.add("hidden");
+document.getElementById("vacationMenu").classList.add("hidden");
+document.getElementById("revenusMenu").classList.add("hidden");
+document.getElementById(menu+"Menu").classList.remove("hidden");
+renderRevenus(); // IRS SYSTEM: Render menu if needed
+}
+
+// ---------- PRICE ----------
+function setPrice(){
+game.price=parseInt(document.getElementById("priceInput").value);
+}
+
+// ---------- IRS SYSTEM: REVENUS MENU ----------
+function renderRevenus(){
+if(!document.getElementById("revenusMenu")) return;
+let html = "";
+for(let y=1;y<=game.year;y++){
+  let gross = game.yearlyRevenue[y]||0;
+  let tax = Math.floor(gross*0.25);
+  let paid = game.unpaidTaxes[y]===false;
+  html += `<div class='menu-box'>Year ${y}<br>Revenue: ${formatMoney(gross)}<br>Tax (25%): ${formatMoney(tax)}<br>Status: ${paid?"Paid":"Unpaid"}`;
+  if(!paid && y===game.year-1 && game.week===1){
+    html += `<br><button onclick='payTaxes(${y})'>Pay Taxes (25%)</button>`;
+  }
+  html += `</div>`;
+}
+document.getElementById("revenusContent").innerHTML=html;
+}
+
+function payTaxes(year){
+let gross = game.yearlyRevenue[year]||0;
+let tax = Math.floor(gross*0.25);
+if(game.money>=tax){
+game.money-=tax;
+game.unpaidTaxes[year]=false;
+game.irsRisk=Math.max(0,game.irsRisk-20);
+}else{
+game.unpaidTaxes[year]=true;
+game.irsRisk+=20;
+}
+updateUI();
+renderRevenus();
+}
+
+// ---------- UI ----------
+function updateUI(){
+document.getElementById("week").innerText=game.week;
+document.getElementById("year").innerText=game.year;
+document.getElementById("energy").innerText=game.energy;
+document.getElementById("maxEnergy").innerText=game.maxEnergy;
+document.getElementById("money").innerText=formatMoney(game.money);
+document.getElementById("twitterFans").innerText=formatNumber(game.twitterFans);
+document.getElementById("ofFans").innerText=formatNumber(game.ofFans);
+document.getElementById("prestige").innerText=game.prestige;
+document.getElementById("passive").innerText=formatMoney(game.passiveIncome);
+document.getElementById("maintenance").innerText=formatMoney(game.maintenance);
+
+renderStats();
+renderShop();
+renderOwned();
+renderVacations();
+renderRevenus(); // IRS SYSTEM: Always update menu
+
+// --- CELEBRITY BADGE ---
+if(game.twitterFans>=500000 && !game.celebrity){
+game.celebrity=true;
+}
+let badge=document.getElementById("celebrityBadge");
+if(badge){
+if(game.celebrity){
+badge.innerText="🔵";
+badge.style.cursor="default";
+}else{
+badge.innerText="⚪";
+}
+}
+
+// --- AVERAGE STAT DISPLAY ---
+let avg=document.getElementById("avgStat");
+if(avg){
+avg.innerText=getAverageStat();
+}
+saveGame();
+}
+
+updateUI();
+
+// ---------- CELEBRITY INFO ----------
+function openCelebrityInfo(){
+if(game.celebrity) return;
+alert("Instagram Celebrity Status\n\nReach 500,000 Twitter followers to unlock verification badge.");
+}
+
+// ---------- AVERAGE STAT FUNCTION ----------
+function getAverageStat(){
+let total=0;
+let count=0;
+for(let s in game.stats){
+total+=game.stats[s];
+count++;
+}
+return Math.floor(total/count);
+}
+
+// ---------- BRAND DEAL (SAFE MODIFICATION) ----------
+function twitterBrandDeal(){
+let revenue=10000+Math.random()*20000;
+revenue *= (1 + game.managerLevel * 0.05 + game.jetBonus);
+game.money+=revenue;
+addRevenue(revenue);
+updateUI();
+}
+
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+</body>
+</html>
+
+--- manifest.json ---
+
+{
+  "name": "Creator Empire",
+  "short_name": "Creator",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+
+--- service-worker.js ---
+
+self.addEventListener("install", e => {
+  e.waitUntil(
+    caches.open("creator-cache").then(cache => {
+      return cache.addAll(["./"]);
+    })
+  );
+});
+
+self.addEventListener("fetch", e => {
+  e.respondWith(
+    caches.match(e.request).then(response => {
+      return response || fetch(e.request);
+    })
+  );
+});
